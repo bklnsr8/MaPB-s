@@ -1,0 +1,230 @@
+---
+- hosts: packstack
+  remote_user: ansible
+# Set correct hostname make shoure that you hostname is in the hostfile with you ip corrected my servername is openstack1.mydomain.com
+  tasks:
+# 10.100.0.50 openstack openstack.trilliam.cloud
+  - name: Add packstack entry to the hosts file
+    lineinfile:
+      path: /etc/hosts
+      line: 10.0.2.6 openstack openstack.trilliam.cloud
+      insertafter: EOF
+      state: present
+
+## Install the packages needed
+  tasks:
+# sudo yum install -y http://rdo.fedorapeople.org/rdo-release.rpm
+  - name: Install rdo-release repo
+    yum:
+      name: http://rdo.fedorapeople.org/rdo-release.rpm
+      state: present
+# sudo yum install -y openstack-packstack
+  - name: install packstack
+    yum:
+      name: openstack-packstack
+      state: latest
+# sudo yum update
+  - name:
+    yum:
+      name: '*'
+      state: latest
+
+# sudo reboot
+  - name:
+    commmand: systemctl reboot
+
+##Install and setup Openstack RDO
+  tasks:
+# packstack --allinone --provision-all-in-one-ovs-bridge=n
+  - name:
+    command:
+
+
+
+Setup the network
+
+Create the file /etc/sysconfig/network-scripts/ifcfg-br-ex and add the following correct to you ip on host
+
+DEVICE=br-ex
+DEVICETYPE=ovs
+TYPE=OVSBridge
+BOOTPROTO=static
+IPADDR=10.100.0.50 # Old eth0 IP since we want the network restart to not kill the connection, otherwise pick something outside your dhcp range
+NETMASK=255.255.255.0 # your netmask
+GATEWAY=10.100.0.1 # your gateway
+DNS1=10.100.0.1 # your nameserver
+ONBOOT=yes
+
+
+
+Fix you eno1 file (My network are connect to eno1 interface) my looks like this
+
+BOOTPROTO="none"
+IPV4_FAILURE_FATAL="no"
+IPV6INIT="yes"
+IPV6_AUTOCONF="yes"
+IPV6_DEFROUTE="yes"
+IPV6_FAILURE_FATAL="no"
+NAME="eno1"
+UUID="69dcfe19-4eab-41d2-afad-a10bd86c84b3"
+ONBOOT="yes"
+HWADDR="D8:9D:67:15:67:24"
+IPV6_PEERDNS="yes"
+IPV6_PEERROUTES="yes"
+TYPE=OVSPort
+DEVICETYPE=ovs
+OVS_BRIDGE=br-ex
+ONBOOT=yes
+
+
+
+Open the file vi /etc/neutron/plugin.ini and add
+
+under the [ml2_type_vxlan]
+
+network_vlan_ranges = physnet1
+
+and then add under that
+
+
+
+[ovs]
+network_vlan_ranges = physnet1
+bridge_mappings = physnet1:br-ex
+
+Restart the network
+
+systemctl restart network.service
+
+sometimes I have problem when i restart my server the  I have to run the network restart after the server is booted to get network running.
+This can have some issues so that the network dies and have to be restarted to work.
+
+
+
+
+Set up Openstack
+
+Now you shuld have av openstack server up and running the admin password is found in /root/keystonerc_admin
+
+Setup the Network
+
+
+
+get access
+
+source ~/keystonerc_admin
+
+
+
+Clean out
+
+neutron router-gateway-clear router1
+neutron subnet-delete public_subnet
+
+
+
+Add our exesting subnet as public
+
+my exesting network is 10.100.0.0/24 and i want to use 10.100.0.200 to 10.100.0.220 to my server inside openstack
+
+neutron subnet-create --name public_subnet --enable_dhcp=False --allocation-pool=start=10.100.0.200,end=10.100.0.220 --gateway=10.100.0.1 public 10.100.0.0/24
+
+
+
+Add our router and private network
+
+neutron router-gateway-set router1 public
+neutron net-create hostnet
+neutron subnet-create --name private_subnet --enable_dhcp=True --allocation-pool=start=10.0.0.2,end=10.0.0.200 hostnet 10.0.0.0/24
+neutron router-gateway-set router1 hostnet  <-- dont work read bellow
+
+This could somethimes dont work but then you can login to openstack as admin and go to Project/network/routers
+Add a router and conenct it to the public network. Then press the router and add new port and add it to the hostnet give it ip 10.0.0.1
+
+you should have e network top that looks like this.
+
+network
+
+
+Time to add floating ip
+
+in the openstack dashbourd go to project ->compute ->Access & security -> floating ip
+add as many ip as you can i started now with only two that i need.
+Set up keys
+
+in the openstack dashbourd go to project ->compute ->Access & security -> key pairs
+
+generate and se that you get the pem file to you computer.
+
+
+Set up access to server
+
+in the openstack dashbourd go to project ->compute ->Access & security -> security group
+
+press manager rules and add rules for
+
+
+
+icmp all both ingress / egress directions (two rules)
+
+ssh allow rule
+
+
+
+So the network part is OK now we need to set up some openstack
+
+
+Install instance
+
+
+
+
+
+Go to in the openstack dashbord projects ->compute -> instans
+
+press launch instanse and give the host the following settings
+
+
+
+name: cirrius
+flavor: tiny
+instance boot source:boot from image
+image:cirrius
+
+Network:hostnet (ONLY THE HOSTNET !!!!!!!)
+
+
+
+then press launch
+
+
+Add flouting ip
+
+assosiate a floting ip that we created before to the host
+
+
+
+Test so that it works
+
+loggin in to the instance and test so that you have network by pingen 8.8.8.8 and 10.0.0.1
+
+it should work and you instanse should have internet access so lets test from external into the instance. From your openstack host ping you floting ip. and test to ssh into it.
+And it should work and you have a working platform.
+
+
+
+
+
+
+Error test to restart service in this order
+
+[root@openstack1 mathem(keystone_admin)]# systemctl restart rabbitmq-server.service
+[root@openstack1 mathem(keystone_admin)]# systemctl restart openstack-swift-proxy.service
+[root@openstack1 mathem(keystone_admin)]# systemctl restart openstack-swift-object.service
+[root@openstack1 mathem(keystone_admin)]# systemctl restart openstack-swift-container.service
+[root@openstack1 mathem(keystone_admin)]# systemctl restart openstack-swift-account.service
+[root@openstack1 mathem(keystone_admin)]# systemctl restart openstack-ceilometer-api.service
+[root@openstack1 mathem(keystone_admin)]# systemctl restart openstack-ceilometer-api.service
+[root@openstack1 mathem(keystone_admin)]# systemctl restart neutron-server.service
+[root@openstack1 mathem(keystone_admin)]# systemctl restart mongod.service
+  ...
