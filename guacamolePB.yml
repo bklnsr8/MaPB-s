@@ -9,7 +9,6 @@
 
 
 ## 1.prerequisiites:
-  tasks:
   - name: yum install epel-release and wget
     yum:
       name: "{{ item.name }}"
