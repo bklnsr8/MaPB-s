@@ -1,254 +1,248 @@
 ---
-- hosts: connection_broker
-  remote_user: ansible
+  - hosts: connection_broker
+    remote_user: ansible
 
 
-  tasks:
-  - name: test connection
-    ping:
+    tasks:
+    - name: test connection
+      ping:
 
 
 ## 1.prerequisiites:
-  tasks:
-  - name: yum install epel-release and wget
-    yum:
-      name: "{{ item.name }}"
-      state: "{{ item.state  }}"
-    with_items:
-      - { name: 'epel-release', state: 'latest' }
-      - { name: 'wget', state: 'latest' }
-      - { name: 'unzip', state: 'latest' }
+
+    - name: yum install epel-release and wget
+      yum:
+        name: "{{ item.name }}"
+        state: "{{ item.state  }}"
+      with_items:
+        - { name: 'epel-release', state: 'latest' }
+        - { name: 'wget', state: 'latest' }
+        - { name: 'unzip', state: 'latest' }
 
 #wget -O /etc/yum.repos.d/home:felfert.repo http://download.opensuse.org/repositories/home:/felfert/Fedora_19/home:felfert.repo
-  - name: download felfert repo
-    get_url:
-      url: http://download.opensuse.org/repositories/home:/felfert/Fedora_19/home:felfert.repo
-      dest: /etc/yum.repos.d/home:felfert.repo
+    - name: download felfert repo
+      get_url:
+        url: http://download.opensuse.org/repositories/home:/felfert/Fedora_19/home:felfert.repo
+        dest: /etc/yum.repos.d/home:felfert.repo
 #yum -y install cairo-devel freerdp-devel gcc java-1.8.0-openjdk.x86_64 libguac libguac-client-rdp libguac-client-ssh libguac-client-vnc \
 #libjpeg-turbo-devel libpng-devel libssh2-devel libtelnet-devel libvncserver-devel libvorbis-devel libwebp-devel openssl-devel pango-devel \
 #pulseaudio-libs-devel terminus-fonts tomcat tomcat-admin-webapps tomcat-webapps uuid-devel
-  - name: install yum list
-    yum:
-      name: "{{ item.name }}"
-      state: "{{ item.state }}"
-    with_items:
-      - { name: 'cairo-devel', state: 'latest'}
-      - { name: 'freerdp-devel', state: 'latest'}
-      - { name: 'gcc', state: 'latest'}
-      - { name: 'java-1.8.0-openjdk.x86_64', state: 'latest'}
-      - { name: 'libguac', state: 'latest'}
-      - { name: 'libguac-client-rdp', state: 'latest'}
-      - { name: 'libguac-client-ssh', state: 'latest'}
-      - { name: 'libguac-client-vnc', state: 'latest'}
-      - { name: 'libjpeg-turbo-devel', state: 'latest'}
-      - { name: 'libpng-devel', state: 'latest'}
-      - { name: 'libssh2-devel', state: 'latest'}
-      - { name: 'libtelnet-devel', state: 'latest'}
-      - { name: 'libvncserver-devel', state: 'latest'}
-      - { name: 'libvorbis-devel', state: 'latest'}
-      - { name: 'libwebp-devel', state: 'latest'}
-      - { name: 'openssl-devel', state: 'latest'}
-      - { name: 'pango-devel', state: 'latest'}
-      - { name: 'pulseaudio-libs-devel', state: 'latest'}
-      - { name: 'terminus-fonts', state: 'latest'}
-      - { name: 'tomcat', state: 'latest'}
-      - { name: 'tomcat-admin-webapps', state: 'latest'}
-      - { name: 'tomcat-webapps', state: 'latest'}
-      - { name: 'uuid-devel', state: 'latest'}
+    - name: install yum list
+      yum:
+        name: "{{ item.name }}"
+        state: "{{ item.state }}"
+      with_items:
+        - { name: 'cairo-devel', state: 'latest'}
+        - { name: 'freerdp-devel', state: 'latest'}
+        - { name: 'gcc', state: 'latest'}
+        - { name: 'java-1.8.0-openjdk.x86_64', state: 'latest'}
+        - { name: 'libguac', state: 'latest'}
+        - { name: 'libguac-client-rdp', state: 'latest'}
+        - { name: 'libguac-client-ssh', state: 'latest'}
+        - { name: 'libguac-client-vnc', state: 'latest'}
+        - { name: 'libjpeg-turbo-devel', state: 'latest'}
+        - { name: 'libpng-devel', state: 'latest'}
+        - { name: 'libssh2-devel', state: 'latest'}
+        - { name: 'libtelnet-devel', state: 'latest'}
+        - { name: 'libvncserver-devel', state: 'latest'}
+        - { name: 'libvorbis-devel', state: 'latest'}
+        - { name: 'libwebp-devel', state: 'latest'}
+        - { name: 'openssl-devel', state: 'latest'}
+        - { name: 'pango-devel', state: 'latest'}
+        - { name: 'pulseaudio-libs-devel', state: 'latest'}
+        - { name: 'terminus-fonts', state: 'latest'}
+        - { name: 'tomcat', state: 'latest'}
+        - { name: 'tomcat-admin-webapps', state: 'latest'}
+        - { name: 'tomcat-webapps', state: 'latest'}
+        - { name: 'uuid-devel', state: 'latest'}
 
 
 ##2.guacd install:
-  tasks:
-
 #mkdir ~/guacamole && cd ~/
-  - name: creating a guacamole directory
-    file: path=~/guacamole state=directory
-  - name: change dir to ~/
-    command: chdir=~/
+    - name: creating a guacamole directory
+      file: path=~/guacamole state=directory
+
+    - name: change dir to ~/
+      command: chdir=~/
 #wget http://sourceforge.net/projects/guacamole/files/current/source/guacamole-server-0.9.9.tar.gz
-  - name: download guacamole-server-0.9.9.tar.gz
-    get_url:
-      url: http://sourceforge.net/projects/guacamole/files/current/source/guacamole-server-0.9.9.tar.gz
-      dest: ~/
+    - name: download guacamole-server-0.9.9.tar.gz
+      get_url:
+        url: http://sourceforge.net/projects/guacamole/files/current/source/guacamole-server-0.9.9.tar.gz
+        dest: ~/
 #tar -xzf guacamole-server-0.9.9.tar.gz && cd guacamole-server-0.9.9
-  - name: extract guacamole-server tar
-    unarchive:
-      src: guacamole-server-0.9.9.tar.gz
-      dest: ~/
-  - name: change directory to ~/guacamole-server-0.9.9
-    command: chdir=~/guacamole-server-0.9.9
+    - name: extract guacamole-server tar
+      unarchive:
+        src: guacamole-server-0.9.9.tar.gz
+        dest: ~/
+
+    - name: change directory to ~/guacamole-server-0.9.9
+      command: chdir=~/guacamole-server-0.9.9
 #./configure --with-init-dir=/etc/init.d
-  - name: run ./configure
-    shell: "{{ item }}"
-    with_items:
-      - ./configure --with-init-dir=/etc/init.d
-      - make
-      - make install
-      - ldconfig
-
+    - name: run ./configure
+      shell: "{{ item }}"
+      with_items:
+        - ./configure --with-init-dir=/etc/init.d
+        - make
+        - make install
+        - ldconfig
 ##3.guacamole client
-  tasks:
 #mkdir -p /var/lib/guacamole && cd /var/lib/guacamole/
-  - name: make the /var/lib/guacamole directory & change to the /var/lib/guacamole/ directory
-    file: path=/var/lib/guacamole state=directory
+    - name: make the /var/lib/guacamole directory & change to the /var/lib/guacamole/ directory
+      file: path=/var/lib/guacamole state=directory
 
-  - name: Change the directory to /var/lib/guacamole/
-    command: chdir=/var/lib/guacamole/
+    - name: Change the directory to /var/lib/guacamole/
+      command: chdir=/var/lib/guacamole/
 #wget http://sourceforge.net/projects/guacamole/files/current/binary/guacamole-0.9.9.war -O guacamole.war
-  - name: Download guacamole-0.9.9.war
-    get_url:
-      url: http://sourceforge.net/projects/guacamole/files/current/binary/guacamole-0.9.9.war
-      dest: guacamole.war
+    - name: Download guacamole-0.9.9.war
+      get_url:
+        url: http://sourceforge.net/projects/guacamole/files/current/binary/guacamole-0.9.9.war
+        dest: guacamole.war
 #ln -s /var/lib/guacamole/guacamole.war /var/lib/tomcat/webapps/
-  - name: Create a soft link between /var/lib/guacamole/guacamole.war and /var/lib/tomcat/webapps/
-    file:
-      src: /var/lib/guacamole/guacamole.war
-      dest: /var/lib/tomcat/webapps/
-      state: link
+    - name: Create a soft link between /var/lib/guacamole/guacamole.war and /var/lib/tomcat/webapps/
+      file:
+        src: /var/lib/guacamole/guacamole.war
+        dest: /var/lib/tomcat/webapps/
+        state: link
 #rm -rf /usr/lib64/freerdp/guacdr.so
-  - name: remove the /usr/lib64/freerdp/guacdr.so
-    file:
-      src: /usr/lib64/freerdp/guacdr.so
-      state: absent
+    - name: remove the /usr/lib64/freerdp/guacdr.so
+      file:
+        src: /usr/lib64/freerdp/guacdr.so
+        state: absent
 #ln -s /usr/local/lib/freerdp/guacdr.so /usr/lib64/freerdp/
-  - name: Create a soft link between /usr/local/lib/freerdp/guacdr.so and /usr/lib64/freerdp/
-    file:
-      src: /usr/local/lib/freerdp/guacdr.so
-      dest: /usr/lib64/freerdp/
-      state: link
+    - name: Create a soft link between /usr/local/lib/freerdp/guacdr.so and /usr/lib64/freerdp/
+      file:
+        src: /usr/local/lib/freerdp/guacdr.so
+        dest: /usr/lib64/freerdp/
+        state: link
 
 ##4.mysql authentication
-  tasks:
 #yum -y install mariadb mariadb-server
-  - name: Install mariadb & mariadb-server
-    yum:
-      name: "{{ item.name }}"
-      state: "{{ itme.state }}"
-    with_items:
-      - { name: 'mariadb', state: 'latest' }
-      - { name: 'mariadb-server', state: 'latest' }
+    - name: Install mariadb & mariadb-server
+      yum:
+        name: "{{ item.name }}"
+        state: "{{ itme.state }}"
+      with_items:
+        - { name: 'mariadb', state: 'latest' }
+        - { name: 'mariadb-server', state: 'latest' }
 #mkdir -p ~/guacamole/sqlauth && cd ~/guacamole/sqlauth
-  - name: Create the ~/guacamole/sqlauth
-    file:
-      path: ~/guacamole/sqlauth
-      state: directory
+    - name: Create the ~/guacamole/sqlauth
+      file:
+        path: ~/guacamole/sqlauth
+        state: directory
 
-  - name: Change the directory to ~/guacamole/sqlauth
-    command: chdir=~/guacamole/sqlauth
+    - name: Change the directory to ~/guacamole/sqlauth
+      command: chdir=~/guacamole/sqlauth
 #wget http://sourceforge.net/projects/guacamole/files/current/extensions/guacamole-auth-jdbc-0.9.9.tar.gz
-  - name: Download guacamole-auth-jdbc-0.9.9.tar.gz
-    get_url:
-      url: http://sourceforge.net/projects/guacamole/files/current/extensions/guacamole-auth-jdbc-0.9.9.tar.gz
-      dest: ~/guacamole/sqlauth
+    - name: Download guacamole-auth-jdbc-0.9.9.tar.gz
+      get_url:
+        url: http://sourceforge.net/projects/guacamole/files/current/extensions/guacamole-auth-jdbc-0.9.9.tar.gz
+        dest: ~/guacamole/sqlauth
 #tar -zxf guacamole-auth-jdbc-0.9.9.tar.gz
-  - name:
-    unarchive:
-      src: guacamole-auth-jdbc-0.9.9.tar.gz
-      dest: ~/guacamole/sqlauth
+    - name:
+      unarchive:
+        src: guacamole-auth-jdbc-0.9.9.tar.gz
+        dest: ~/guacamole/sqlauth
 #wget http://dev.mysql.com/get/Downloads/Connector/j/mysql-connector-java-5.1.38.tar.gz
-  - name:
-    get_url:
-      url: http://dev.mysql.com/get/Downloads/Connector/j/mysql-connector-java-5.1.38.tar.gz
-      dest: ~/guacamole/sqlauth
+    - name:
+      get_url:
+        url: http://dev.mysql.com/get/Downloads/Connector/j/mysql-connector-java-5.1.38.tar.gz
+        dest: ~/guacamole/sqlauth
 #tar -zxf mysql-connector-java-5.1.38.tar.gz
-  - name:
-    unarchive:
-      src: mysql-connector-java-5.1.38.tar.gz
-      dest: ~/guacamole/sqlauth
+    - name:
+      unarchive:
+        src: mysql-connector-java-5.1.38.tar.gz
+        dest: ~/guacamole/sqlauth
 #mkdir -p /usr/share/tomcat/.guacamole/{extensions,lib}
-  - name:
-    file:
-      path: /usr/share/tomcat/.guacamole/"{{ item }}"
-      state: directory
-    with_items:
-    - extensions
-    - lib
+    - name:
+      file:
+        path: /usr/share/tomcat/.guacamole/"{{ item }}"
+        state: directory
+      with_items:
+        - extensions
+        - lib
 #mv guacamole-auth-jdbc-0.9.9/mysql/guacamole-auth-jdbc-mysql-0.9.9.jar /usr/share/tomcat/.guacamole/extensions/
-  - name: Copy guacamole-auth-jdbc-mysql-0.9.9.jar to /usr/share/tomcat/.guacamole/extensions/
-    copy:
-      src: guacamole-auth-jdbc-0.9.9/mysql/guacamole-auth-jdbc-mysql-0.9.9.jar
-      dest: /usr/share/tomcat/.guacamole/extensions/
+    - name: Copy guacamole-auth-jdbc-mysql-0.9.9.jar to /usr/share/tomcat/.guacamole/extensions/
+      copy:
+        src: guacamole-auth-jdbc-0.9.9/mysql/guacamole-auth-jdbc-mysql-0.9.9.jar
+        dest: /usr/share/tomcat/.guacamole/extensions/
 
-  - name: Remove old file: guacamole-auth-jdbc-0.9.9/mysql/guacamole-auth-jdbc-mysql-0.9.9.jar
-    file:
-      path: guacamole-auth-jdbc-0.9.9/mysql/guacamole-auth-jdbc-mysql-0.9.9.jar
-      state: absent
+    - name: Remove old file guacamole-auth-jdbc-0.9.9/mysql/guacamole-auth-jdbc-mysql-0.9.9.jar
+      file:
+        path: guacamole-auth-jdbc-0.9.9/mysql/guacamole-auth-jdbc-mysql-0.9.9.jar
+        state: absent
 
 #mv mysql-connector-java-5.1.38/mysql-connector-java-5.1.38-bin.jar /usr/share/tomcat/.guacamole/lib/
-  - name: Copy mysql-connector-java-5.1.38/mysql-connector-java-5.1.38-bin.jar to /usr/share/tomcat/.guacamole/lib/
-    copy:
-      src: mysql-connector-java-5.1.38/mysql-connector-java-5.1.38-bin.jar
-      dest: /usr/share/tomcat/.guacamole/lib/
+    - name: Copy mysql-connector-java-5.1.38/mysql-connector-java-5.1.38-bin.jar to /usr/share/tomcat/.guacamole/lib/
+      copy:
+        src: mysql-connector-java-5.1.38/mysql-connector-java-5.1.38-bin.jar
+        dest: /usr/share/tomcat/.guacamole/lib/
 
-  - name: Remove old file: mysql-connector-java-5.1.38/mysql-connector-java-5.1.38-bin.jar
-    file:
-      path: mysql-connector-java-5.1.38/mysql-connector-java-5.1.38-bin.jar
-      state: absent
+    - name: Remove old file mysql-connector-java-5.1.38/mysql-connector-java-5.1.38-bin.jar
+      file:
+        path: mysql-connector-java-5.1.38/mysql-connector-java-5.1.38-bin.jar
+        state: absent
 #systemctl restart mariadb.service
-  - name: Restart the mariadb service
-    systemd:
-      state: restarted
-      daemon_reload: yes
-      name: mariadb
+    - name: Restart the mariadb service
+      systemd:
+        state: restarted
+        daemon_reload: yes
+        name: mariadb
 #
 ##5.configure database
-  tasks:
 #mysqladmin -u root password MySQLRootPass
-  - name: configure the mysqladmin root user
-    command: mysqladmin -u root password MySQLRootPass
+    - name: configure the mysqladmin root user
+      command: mysqladmin -u root password MySQLRootPass
 #mysql -u root -p   # Enter above password
-  - name: Login into the mysql shell
-    expect:
-      command: mysql -u root -p
-      responses:
-        (?!)password: "MySQLRootPass"
+    - name: Login into the mysql shell
+      expect:
+        command: mysql -u root -p
+        responses:
+          (?!)password: "MySQLRootPass"
 #create database guacdb;
-  - name: Create the guacdb database in mysql
-    mysql_db:
-      name: guacdb
-      state: present
+    - name: Create the guacdb database in mysql
+      mysql_db:
+        name: guacdb
+        state: present
 #create user 'guacuser'@'localhost' identified by 'guacDBpass';
-  - name: Create a new user guacuser@localhost
-    mysql_user:
-      name: guacuser
-      hosts: localhost
-      password: guacDBpass
-      state: present
+    - name: Create a new user guacuser@localhost
+      mysql_user:
+        name: guacuser
+        hosts: localhost
+        password: guacDBpass
+        state: present
 
 #grant select,insert,update,delete on guacdb.* to 'guacuser'@'localhost';
-  - name: Grant permissions to guacuser
-    mysql_user:
-      name: guacuser
-      append_privs: true
-      priv: 'guacdb.*:SELECT,INSERT,UPDATE,DELETE'
-      state: present
+    - name: Grant permissions to guacuser
+      mysql_user:
+        name: guacuser
+        append_privs: true
+        priv: 'guacdb.*:SELECT,INSERT,UPDATE,DELETE'
+        state: present
 #flush privileges;
 #quit
-#
-#
-##6.extend database schema
-  tasks:
+
+##6.extend database scheme
 #cd ~/guacamole/sqlauth/guacamole-auth-jdbc-0.9.9/mysql/schema/
-  - name: Change directory to ~/guacamole/sqlauth/guacamole-auth-jdbc-0.9.9/mysql/schema/
-    command: chdir=~/guacamole/sqlauth/guacamole-auth-jdbc-0.9.9/mysql/schema/
+    - name: Change directory to ~/guacamole/sqlauth/guacamole-auth-jdbc-0.9.9/mysql/schema/
+      command: chdir=~/guacamole/sqlauth/guacamole-auth-jdbc-0.9.9/mysql/schema/
 #cat ./*.sql | mysql -u root -p guacdb   # Enter SQL root password set above
-  - name: Pipe the sql file into mysql
-    mysql_db:
-      state: import
-      name: guacdb
-      target: ./*.sql
-#
+    - name: Pipe the sql file into mysql
+      mysql_db:
+        state: import
+        name: guacdb
+        target: ./*.sql
+
 ##7.configure guacamole
-  tasks:
 #mkdir -p /etc/guacamole/ && vi /etc/guacamole/guacamole.properties
-  - name: Create the /etc/guacamole directory
-    file:
-      path: /etc/guacamole
-      state: directory
-  - name: Create the guacamole.properties file
-    file:
-      path: /etc/guacamole/guacamole.properties
-      state: present
+    - name: Create the /etc/guacamole directory
+      file:
+        path: /etc/guacamole
+        state: directory
+
+    - name: Create the guacamole.properties file
+      file:
+        path: /etc/guacamole/guacamole.properties
+        state: present
 ## MySQL properties
 #mysql-hostname: localhost
 #mysql-port: 3306
@@ -259,51 +253,52 @@
 ## Additional settings
 #mysql-default-max-connections-per-user: 0
 #mysql-default-max-group-connections-per-user: 0
-  - name: Add MySQL properties to /etc/guacamole/guacamole.properties
-    lineinfile:
-      path: /etc/guacamole/guacamole.properties
-      line: "{{ item }}"
-      state: present
-      insertafter: EOF
-    with_items:
-      - '# MySQL properties'
-      - 'mysql-hostname: localhost'
-      - 'mysql-port: 3306'
-      - 'mysql-database: guacdb'
-      - 'mysql-username: guacuser'
-      - 'mysql-password: guacDBpass'
-      - '# Additional settings'
-      - 'mysql-default-max-group-connections-per-user: 0'
-      - 'mysql-default-max-group-connections-per-user: 0'
+    - name: Add MySQL properties to /etc/guacamole/guacamole.properties
+      lineinfile:
+        path: /etc/guacamole/guacamole.properties
+        line: "{{ item }}"
+        state: present
+        insertafter: EOF
+      with_items:
+        - '# MySQL properties'
+        - 'mysql-hostname: localhost'
+        - 'mysql-port: 3306'
+        - 'mysql-database: guacdb'
+        - 'mysql-username: guacuser'
+        - 'mysql-password: guacDBpass'
+        - '# Additional settings'
+        - 'mysql-default-max-group-connections-per-user: 0'
+        - 'mysql-default-max-group-connections-per-user: 0'
 
 #ln -s /etc/guacamole/guacamole.properties /usr/share/tomcat/.guacamole/
-  - name: Create a soft link from /etc/guacamole/guacamole.properties to /usr/share/tomcat/.guacamole/
-    file:
-      src: /etc/guacamole/guacamole.properties
-      dest: /usr/share/tomcat/.guacamole/
-      state: link
+    - name: Create a soft link from /etc/guacamole/guacamole.properties to /usr/share/tomcat/.guacamole/
+      file:
+        src: /etc/guacamole/guacamole.properties
+        dest: /usr/share/tomcat/.guacamole/
+        state: link
 ##8.Cleanup
-  tasks:
 #cd ~ && rm -rf guacamole*
-  - name: Change directory to the user
-    command: chdir=~
-  - name: Remove all guacamole files
-    file:
-      src: ~/guacamole*
-      state: absent
+    - name: Change directory to the user
+      command: chdir=~
+
+    - name: Remove all guacamole files
+      file:
+        src: ~/guacamole*
+        state: absent
 #systemctl enable tomcat.service && systemctl enable mariadb.service && chkconfig guacd on
-  - name: Enable tomcat & mariadb
-    systemd:
-      name: "{{ item }}"
-      enabled: yes
-    with_items:
-      - tomcat
-      - mariadb
-  - name: Set guacd to run at start
-    command: chkconfig guacd on
+    - name: Enable tomcat & mariadb
+      systemd:
+        name: "{{ item }}"
+        enabled: yes
+      with_items:
+        - tomcat
+        - mariadb
+
+    - name: Set guacd to run at start
+      command: chkconfig guacd on
 
 #systemctl reboot
-  - name: Restart the systemc
-    command: systemctl reboot
+    - name: Restart the systemc
+      command: systemctl reboot
 
 ...
