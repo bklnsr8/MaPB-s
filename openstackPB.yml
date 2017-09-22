@@ -1,85 +1,82 @@
 ---
-- hosts: packstack
-  remote_user: ansible
+  - hosts: packstack
+    remote_user: ansible
 # Set correct hostname make shoure that you hostname is in the hostfile with you ip corrected my servername is openstack1.mydomain.com
-  tasks:
+    tasks:
 # 10.100.0.50 openstack openstack.trilliam.cloud
-  - name: Add packstack entry to the hosts file
-    lineinfile:
-      path: /etc/hosts
-      line: 10.0.2.6 openstack openstack.trilliam.cloud
-      insertafter: EOF
-      state: present
+    - name: Add packstack entry to the hosts file
+      lineinfile:
+        path: /etc/hosts
+        line: 10.0.2.6 openstack openstack.trilliam.cloud
+        insertafter: EOF
+        state: present
 
 ## Install the packages needed
-  tasks:
 # sudo yum install -y http://rdo.fedorapeople.org/rdo-release.rpm
-  - name: Install rdo-release repo
-    yum:
-      name: http://rdo.fedorapeople.org/rdo-release.rpm
-      state: present
+    - name: Install rdo-release repo
+      yum:
+        name: http://rdo.fedorapeople.org/rdo-release.rpm
+        state: present
 # sudo yum install -y openstack-packstack
-  - name: install packstack
-    yum:
-      name: openstack-packstack
-      state: latest
+    - name: install packstack
+      yum:
+        name: openstack-packstack
+        state: latest
 # sudo yum update
-  - name:
-    yum:
-      name: '*'
-      state: latest
-
+    - name:
+      yum:
+        name: '*'
+        state: latest
 # sudo reboot
-  - name:
-    commmand: systemctl reboot
+    - name:
+      commmand: systemctl reboot
 
 ##Install and setup Openstack RDO
-  tasks:
 # packstack --allinone --provision-all-in-one-ovs-bridge=n
-  - name:
-    command:
+    - name: Install Packstack
+      command: packstack --allinone --provision-all-in-one-ovs-bridge=n
 
+# Setup the network
+# Create the file /etc/sysconfig/network-scripts/ifcfg-br-ex and add the following correct to you ip on host
+    - name: Create the network-scripts file ifcfg-br-ex
+      blockinfile:
+        path: /etc/sysconfig/network-scripts/ifcfg-br-ex
+        create: yes
+        block: |
+          DEVICE=br-ex
+          DEVICETYPE=ovs
+          TYPE=OVSBridge
+          BOOTPROTO=static
+          IPADDR=10.100.0.50 # Old eth0 IP since we want the network restart to not kill the connection, otherwise pick something outside your dhcp range
+          NETMASK=255.255.255.0 # your netmask
+          GATEWAY=10.100.0.1 # your gateway
+          DNS1=10.100.0.1 # your nameserver
+          ONBOOT=yes
 
+# Fix your eno1 file (My network are connect to eno1 interface) my looks like this
+    - name: Edit the main NIC to accept bridge_mappings
+      blockinfile:
+      block: |
+        BOOTPROTO="none"
+        IPV4_FAILURE_FATAL="no"
+        IPV6INIT="yes"
+        IPV6_AUTOCONF="yes"
+        IPV6_DEFROUTE="yes"
+        IPV6_FAILURE_FATAL="no"
+        NAME="eno1"
+        UUID="69dcfe19-4eab-41d2-afad-a10bd86c84b3"
+        ONBOOT="yes"
+        HWADDR="D8:9D:67:15:67:24"
+        IPV6_PEERDNS="yes"
+        IPV6_PEERROUTES="yes"
+        TYPE=OVSPort
+        DEVICETYPE=ovs
+        OVS_BRIDGE=br-ex
+        ONBOOT=yes
 
-Setup the network
-
-Create the file /etc/sysconfig/network-scripts/ifcfg-br-ex and add the following correct to you ip on host
-
-DEVICE=br-ex
-DEVICETYPE=ovs
-TYPE=OVSBridge
-BOOTPROTO=static
-IPADDR=10.100.0.50 # Old eth0 IP since we want the network restart to not kill the connection, otherwise pick something outside your dhcp range
-NETMASK=255.255.255.0 # your netmask
-GATEWAY=10.100.0.1 # your gateway
-DNS1=10.100.0.1 # your nameserver
-ONBOOT=yes
-
-
-
-Fix you eno1 file (My network are connect to eno1 interface) my looks like this
-
-BOOTPROTO="none"
-IPV4_FAILURE_FATAL="no"
-IPV6INIT="yes"
-IPV6_AUTOCONF="yes"
-IPV6_DEFROUTE="yes"
-IPV6_FAILURE_FATAL="no"
-NAME="eno1"
-UUID="69dcfe19-4eab-41d2-afad-a10bd86c84b3"
-ONBOOT="yes"
-HWADDR="D8:9D:67:15:67:24"
-IPV6_PEERDNS="yes"
-IPV6_PEERROUTES="yes"
-TYPE=OVSPort
-DEVICETYPE=ovs
-OVS_BRIDGE=br-ex
-ONBOOT=yes
-
-
-
-Open the file vi /etc/neutron/plugin.ini and add
-
+# Open the file vi /etc/neutron/plugin.ini and add
+    - name: Edit the  /etc/neutron/plugin.ini
+      
 under the [ml2_type_vxlan]
 
 network_vlan_ranges = physnet1
