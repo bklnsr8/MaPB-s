@@ -1,0 +1,172 @@
+---
+  - hosts: hypervisor
+    remote_user: ansible
+    become: true
+
+    tasks:
+# Run the following yum command to install KVM and its associated packages.
+# [root@linuxtechi ~]# yum install qemu-kvm qemu-img virt-manager libvirt libvirt-python libvirt-client virt-install virt-viewer bridge-utils
+     - name: Step1 Install KVM and its associate packages
+       yum:
+         name: "{{ item }}"
+         state: latest
+       with_items:
+            - qemu-kvm
+            - qemu-img
+            - virt-manager
+            - libvirt
+            - libvirt-python
+            - libvirt-client
+            - virt-install
+            - virt-viewer
+            - bridge-utils
+# [root@linuxtechi ~]# systemctl start libvirtd
+# [root@linuxtechi ~]# systemctl enable libvirtd
+     - name: Start and enable the libvirtd service
+       systemd:
+         name: libvirtd
+         state: started
+         enabled: yes
+        
+# [root@linuxtechi ~]# lsmod | grep kvm
+# kvm_intel             162153  0
+# kvm                   525409  1 kvm_intel
+# [root@linuxtechi ~]#
+#     - name: Run the beneath command to check whether KVM module is loaded or not
+#       shell: lsmod | grep kvm
+#       register: output
+#     
+#     - name: checking if kvm module is not loaded
+#       debug: msg="kvm is not loaded"
+#       when: output.stdout == "" 
+# In Case you have Minimal CentOS 7 and RHEL 7 installation , then virt-manger will not start for that you need to install x-window package.
+
+# [root@linuxtechi ~]# yum install "@X Window System" xorg-x11-xauth xorg-x11-fonts-* xorg-x11-utils -y
+     
+     - name: check if Minimal CentOS is installed then install extra packages
+       yum:
+         name: "{{ item }}"
+         state: latest
+       with_items:
+            - "@X Windows System"
+            - xorg-x11-xauth
+            - xorg-x11-fonts*
+            - xorg-x11-utils
+       when: ansible_os_family == "RedHat" 
+# Reboot the Server and then try to start virt manager.
+#     - name: restart the system
+#       command: shutdown -r now "Reboot triggered by ansible"
+#       async: 0
+#       poll: 0
+#       ignore_errors: true
+#
+#     - name: wait for the system to restart
+#       local_action:
+#         module: wait_for
+#          host={{ inventory_hostname }}
+#          port=22
+#          delay=1
+#          timeout=300
+
+# Virt Manager is a graphical tool through which we can install and manage virtual machines. To start the virt manager type the ‘virt-manager‘ command from the terminal.
+# [root@linuxtechi ~]# virt-manager
+#     - name: Step:2 Start the Virt Manager
+#       command: virt-manager
+
+# virt-manger-CentOS7virt-manger-CentOS7
+
+# Step:3 Configure Bridge Interface
+# Before Start creating VMs , let’s first create the bridge interface. Bridge interface is required if you want to access virtual machines from outside of your hypervisor network.
+# [root@linuxtechi ~]# cd /etc/sysconfig/network-scripts/
+# [root@linuxtechi network-scripts]# cp ifcfg-eno49 ifcfg-br0
+# [root@linuxtechi network-scripts]#
+     - name: Create the ifcfg-br0 file using the infcfg-enp0s8 file
+       copy:
+          src: /etc/sysconfig/network-scripts/ifcfg-enp0s3
+          dest: /etc/sysconfig/network-scripts/ifcfg-br0
+# Edit the Interface file and set followings:
+# From:
+# [root@linuxtechi network-scripts]# vi ifcfg-enp0s8
+# TYPE=Ethernet
+# BOOTPROTO=none
+# DEFROUTE=yes
+# IPV4_FAILURE_FATAL=yes
+# IPV6INIT=yes
+# IPV6_AUTOCONF=yes
+# IPV6_DEFROUTE=yes
+# IPV6_FAILURE_FATAL=no
+# IPV6_ADDR_GEN_MODE=stable-privacy
+# NAME=enp0s3
+# UUID=fb71985f-c8aa-445a-b370-e213a031aeeb
+# DEVICE=enp0s3
+# ONBOOT=yes
+# DNS1=10.0.2.1
+# DNS2=8.8.8.8
+# IPADDR=10.0.2.6
+# PREFIX=24
+# GATEWAY=10.0.2.1
+# IPV6_PEERDNS=yes
+# IPV6_PEERROUTES=yes
+# IPV6_PRIVACY=no
+#
+# To:
+# [root@linuxtechi network-scripts]# vi ifcfg-enp0s8
+# TYPE=Ethernet
+# BOOTPROTO=static
+# DEVICE=enp0s3
+# ONBOOT=yes
+# BRIDGE=br0
+     - name: Edit the ifcfg-enp0s3
+       blockinfile:
+            path: /etc/sysconfig/network-scripts/ifcfg-enp0s3
+            block: |
+                TYPE=Ethernet
+                BOOTPROTO=static
+                DEVICE=enp0s3
+                ONBOOT=yes
+                BRIDGE=br0  
+            backup: yes
+# Edit the Bridge file (ifcfg-br0) and set the followings:
+
+# [root@linuxtechi network-scripts]# vi ifcfg-br0
+# TYPE=Bridge
+# BOOTPROTO=static
+# DEVICE=br0
+# ONBOOT=yes
+# IPADDR=10.0.2.6
+# NETMASK=255.255.255.0
+# GATEWAY=10.0.2.1
+# DNS1=10.0.2.1
+     - name: Edit the ifcfg-br0
+       blockinfile:
+            path: /etc/sysconfig/network-scripts/ifcfg-br0
+            block: |
+                TYPE=Bridge
+                NAME=br0
+                BOOTPROTO=static
+                DEVICE=br0
+                ONBOOT=yes
+                IPADDR=10.0.2.6
+                NETMASK=255.255.255.0
+                GATEWAY=10.0.2.1
+                DNS1=10.0.2.1
+                DNS2=8.8.8.8
+            backup: yes
+# Replace the IP address and DNS server details as per your setup.
+
+# Restart the network Service to enable the bridge interface.
+# [root@linuxtechi ~]# systemctl restart network
+# [root@linuxtechi ~]#
+     - name: Restart the network.service
+       systemd:
+            name: network
+            daemon_reload: yes
+            state: started
+# Check the Bridge interface using below command :
+
+# [root@linuxtechi ~]# ip addr show br0
+# Reboot the Server and then try to start virt manager.
+     - name: resboot the machine
+       command: shutdown -r now "reboot triggered by ansible"        
+
+...

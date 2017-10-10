@@ -17,19 +17,24 @@
       yum:
         name: http://rdo.fedorapeople.org/rdo-release.rpm
         state: present
+# yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+    - name: Install the EPEL repo
+      yum:
+        name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+        state: present
 # sudo yum install -y openstack-packstack
     - name: install packstack
       yum:
         name: openstack-packstack
         state: latest
 # sudo yum update
-    - name:
+    - name: update all packages
       yum:
         name: '*'
         state: latest
 # sudo reboot
-    - name:
-      commmand: systemctl reboot
+#    - name: reboot the system
+#      commmand: systemctl reboot
 
 ##Install and setup Openstack RDO
 # packstack --allinone --provision-all-in-one-ovs-bridge=n
@@ -38,38 +43,38 @@
 
 # Setup the network
 # Create the file /etc/sysconfig/network-scripts/ifcfg-br-ex and add the following correct to you ip on host
+    - name: Copy a the enp0s3
+      copy:
+        src: /etc/sysconfig/network-scripts/ifcfg-enp0s3
+        dest: /etc/sysconfig/networl-scripts/ifcfg-br-ex
+
     - name: Create the network-scripts file ifcfg-br-ex
       blockinfile:
         path: /etc/sysconfig/network-scripts/ifcfg-br-ex
-        create: yes
         block: |
           DEVICE=br-ex
           DEVICETYPE=ovs
           TYPE=OVSBridge
           BOOTPROTO=static
-          IPADDR=10.100.0.50 # Old eth0 IP since we want the network restart to not kill the connection, otherwise pick something outside your dhcp range
-          NETMASK=255.255.255.0 # your netmask
-          GATEWAY=10.100.0.1 # your gateway
-          DNS1=10.100.0.1 # your nameserver
+          IPADDR=10.0.2.5
+          NETMASK=255.255.255.0
+          GATEWAY=10.0.2.1
+          DNS1=10.0.2.1
+          DNS2=8.8.8.8
           ONBOOT=yes
-
-# Fix your eno1 file (My network are connect to eno1 interface) my looks like this
+        backup: yes
+# Fix your enp0s3 file (My network are connect to eno1 interface) my looks like this
     - name: Edit the main NIC to accept bridge_mappings
       blockinfile:
         path:
         block: |
-          BOOTPROTO="none"
-          IPV4_FAILURE_FATAL="no"
-          IPV6INIT="yes"
-          IPV6_AUTOCONF="yes"
-          IPV6_DEFROUTE="yes"
-          IPV6_FAILURE_FATAL="no"
-          NAME="eno1"
-          UUID="69dcfe19-4eab-41d2-afad-a10bd86c84b3"
-          ONBOOT="yes"
-          HWADDR="D8:9D:67:15:67:24"
-          IPV6_PEERDNS="yes"
-          IPV6_PEERROUTES="yes"
+          BOOTPROTO=none
+          IPV4_FAILURE_FATAL=no
+          IPV6INIT=yes
+          IPV6_AUTOCONF=yes
+          IPV6_DEFROUTE=yes
+          IPV6_FAILURE_FATAL=no
+          IPV6_PEERROUTES=yes
           TYPE=OVSPort
           DEVICETYPE=ovs
           OVS_BRIDGE=br-ex
@@ -99,7 +104,7 @@
       systemd:
         name: network
         daemon_reload: yes
-        state: restart
+        state: started
 # sometimes I have problem when i restart my server the I have to run the network
 # restart after the server is booted to get network running.
 # This can have some issues so that the network dies and have to be restarted to work.
@@ -117,8 +122,8 @@
 
 # Clean out
 
-# neutron router-gateway-clear router1
-# neutron subnet-delete public_subnet
+neutron router-gateway-clear router1
+neutron subnet-delete public_subnet
 
 # Add our exesting subnet as public
 

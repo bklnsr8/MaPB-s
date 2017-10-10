@@ -2,8 +2,11 @@
   - hosts: conbroker
     remote_user: ansible
     vars:
-      mysql_root_password: MySQLRootPass
-
+      dbuser: root
+      dbpasswd: MySQLRootPass
+      dbhost: localhost
+      dbname: guacdb
+    
     tasks:
     - name: test connection
       ping:
@@ -201,54 +204,73 @@
         name: mariadb
 #
 ##5.configure database
+    - name: install python-devel & mysql-devel
+      yum:
+        name: "{{ item }}"
+      with_items:
+        - python-devel
+        - mysql-devel
+      #  - python-mysqldb
+
     - name: install pip
       yum:
         name: python2-pip
         state: latest
         
     - name: upgrade pip
-      command: pip install --upgrade pip
+      pip:
+        name: pip
+        extra_args: --upgrade
   
     - name: install MySQL-python with pip
       pip:
         name: MySQL-python
+        extra_args: --upgrade
 #mysqladmin -u root password MySQLRootPass # Update root password
     - name: change the mysql root password
       mysql_user:
-        name: root
-        password: "{{ mysql_root_password }}"
+        name: "{{ dbuser }}"
+        host: "{{ dbhost }}" 
+        password: "{{ dbpasswd }}"
+        login_user: "{{ dbuser }}"
+        login_password: "{{ dbpasswd }}"
         check_implicit_admin: yes
-        update_password: always
+        priv: "{{ dbname }}.*:ALL,GRANT"
 
     - name: create the .my.cnf
       template:
-        src: client.my.cnf.j2
+        src: /home/ansible/playbook/MaPB-s/mytemplates/client.my.cnf.j2
         dest: /root/.my.cnf
-        owner: root
-        group: root
-        mode: 0600
+      #  owner: root
+      #  group: root
+      #  mode: 0600
         
 #mysql -u root -p   # Enter above password
 
 #create database guacdb;
     - name: Create the guacdb database in mysql
       mysql_db:
-        name: guacdb
+        name: "{{ dbname }}"
         state: present
 #create user 'guacuser'@'localhost' identified by 'guacDBpass';
     - name: Create a new user guacuser@localhost
       mysql_user:
         name: guacuser
-        hosts: localhost
         password: guacDBpass
+        host: "{{ dbhost }}"
+        login_user: "{{ dbuser }}"
+        login_password: "{{ dbpasswd }}"
         state: present
 
 #grant select,insert,update,delete on guacdb.* to 'guacuser'@'localhost';
     - name: Grant permissions to guacuser
       mysql_user:
         name: guacuser
+        host: "{{ dbhost }}"
+        login_user: "{{ dbuser }}"
+        login_password: "{{ dbpasswd }}"
         append_privs: true
-        priv: 'guacdb.*:SELECT,INSERT,UPDATE,DELETE'
+        priv: "{{ dbname }}.*:SELECT,INSERT,UPDATE,DELETE"
         state: present
 #flush privileges;
 #quit
@@ -261,7 +283,7 @@
     - name: Pipe the sql file into mysql
       mysql_db:
         state: import
-        name: guacdb
+        name: "{{ dbname }}"
         target: /home/ansible/guacamole/sqlauth/guacamole-auth-jdbc-0.9.9/mysql/schema/*.sql
 
 ##7.configure guacamole
