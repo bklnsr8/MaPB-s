@@ -72,7 +72,7 @@
      # yum update
     - name: Do a system update
       yum:
-        name:'*'
+        name: '*'
         state: latest
         
 # Note: Reboot the machine if any kernel related packages have been updated.
