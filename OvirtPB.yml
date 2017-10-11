@@ -1,6 +1,6 @@
 ---
   - hosts: ovirt
-    remote_user: root
+    remote_user: ansible
     
     tasks:
     
