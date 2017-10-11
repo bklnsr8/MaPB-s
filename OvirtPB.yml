@@ -1,5 +1,5 @@
 ---
-  - hosts: Ovirt
+  - hosts: ovirt
     remote_user: root
     
     tasks:
