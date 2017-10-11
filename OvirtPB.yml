@@ -31,7 +31,7 @@
     - name: Enable iptables
       systemd:
         name: iptables
-        state: enabled
+        enabled: yes
 
 # Stop firewalld service
     - name: Stop the firewalld service
