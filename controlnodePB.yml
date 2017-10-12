@@ -38,12 +38,14 @@
           name: ntpd
           enabled: yes
           stated: started
+          
   # Add the ntp service to the firewall rules
       - name: allowing the ntp service through the firewall
         firewalld:
           service: ntp
           permanent: true
           state: enabled
+          zone: public
 ## Add the repository of Openstack Ocata and Epel
   # install the centos7 openstack ocata release
       - name: add the openstack ocata repo
@@ -92,6 +94,7 @@
           service: mysql
           permanent: true
           state: enabled
+          zone: internal
           
 ## install and configure rabbitmq, memcached
   # install rabbitmq and memcached
@@ -125,8 +128,17 @@
           port: "{{ item }}"
           permanent: true
           state: enabled
+          zone:internal
         with_items:
           - 11211/tcp
           - 5672/tcp
         
+## Install and Configure Openstack Identity Service (Keystone)
+  # add a user and database on mariadb for Keystone
+    # mysql -u root -p
+    # create database keystone;
+    # grant all privileges on keystone.* to keystone@'localhost' identified by 'password';
+    # grant all privileges on keyston.* to keystone@'%' identified by 'password';
+    # flush privileges
+  
 ... 
