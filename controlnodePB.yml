@@ -243,5 +243,51 @@
           - 35357/tcp
   
   # Firewall allow ports 5000/tcp & 35357/tcp for internal services
+      - name: 
+        firewaslld:
+          port: "{{ item }}"
+          permanent: true
+          enable: yes
+          zone: internal
+        with_items:
+          - 5000/tcp
+          - 35357/tcp
 
+## Add Projects in Keystone
+  # Create and load environment variables 
+      - name: create and edit ~/keystonerc file
+        blockinfile:
+          dest: /root/keystonerc
+          create: yes
+          block: |
+            export OS_PROJECT_DOMAIN_NAME=default
+            export OS_USER_DOMAIN_NAME=default
+            export OS_PROJECT_NAME=admin
+            export OS_USERNAME=admin
+            export OS_PASSWORD={{ admin_pass }}
+            export OS_AUTH_URL=http://{{ internal_ip }}:35357/v3
+            export OS_IDENTITY_API_VERSION=3
+            export OS_IMAGE_API_VERSION=2
+            export PS1='[\u@\h \W(keystone)]\$'
+  
+    # Change ~/keystonerc permissions
+      - name: Change ~/keystonerc permissions
+        file:
+          path: /root/keystonerc
+          mode: 0600
+  
+    # Create source ~/keystonerc
+      - name: create source ~/keystonerc
+        command: source ~/keystonerc
+      
+      - name:
+        command: echo "source /root/keystonerc " >> ~/.bash_profile
+  
+  # create service project
+      - name: create service project
+        command: openstack project create --domain default --description "Service Project" service
+  
+  # confirm settings
+      - name: confirm settings
+        command: openstack project list
 ...
