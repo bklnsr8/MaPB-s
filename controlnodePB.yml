@@ -4,6 +4,8 @@
     vars:
       internal_if: enp0s8
       public_if: enp0s3
+      internal_ip: 192.168.6.5
+      admin_pass: iq156sr7
       
     - tasks
 ## Configure firewall
@@ -140,5 +142,106 @@
     # grant all privileges on keystone.* to keystone@'localhost' identified by 'password';
     # grant all privileges on keyston.* to keystone@'%' identified by 'password';
     # flush privileges
+    
+  # install keystone
+      - name: install keystone
+        yum:
+          name: "{{ item.name }}"
+          enablerepo: "{{ item.repo }}"
+          state: present
+        with_items:
+          - { name: openstack-keystone, repo: centos-openstack-ocata }
+          - { name: openstack-utils, repo: centos-openstack-ocata }
+          - { name: python-openstackclient, repo: centos-openstack-ocata }
+          - { name: httpd, repo: epel }
+          - { name: mod_wsgi, repo: epel }
   
-... 
+  # Configure Keystone file /etc/keystone/keystone.conf
+    # line 714: add (MariaDB connection info)   
+      - name: line 714: add (MariaDB connection info)
+        lineinfile:
+          dest: /etc/keystone/keystone.conf
+          insertafter: '^#connection = <None>'
+          line: 'connection = mysql+pymysql://keystone:password@{{ internal_ip }}/keystone'
+          state: present
+    
+    # line 1494: specify Memcache server
+      - name: line 1494: specify memcache server
+        lineinfile:
+          dest: /etc/keystone/keystone.conf
+          insertafter: '^\[memcache\]'
+          line: 'servers = {{ internal_ip }}:11211'
+          state: present
+          
+    # line 2791 add provider and driver
+      - name: line 2791 add provider and driver
+        blockinfile:
+          dest: /etc/keystone/keystone.conf
+          insertafter: '^\[token\]'
+          block: |
+            provider = fernet
+            driver = memcache
+            
+    # change the shell of the keystone user | pass keystone-manager and db_sync into the shell
+      - name: change the shell of the keystone user
+        command: su -s /bin/bash keystone -c "keystone-manage db_sync"
+        
+    # initialize keys
+      - name: initialize keys fernet_setup
+        command: keystone-manage fernet_setup --keystone-user keystone --keystone-group keystone
+        
+      - name: initialize keys credential_setup
+        command: keystone-manage credential_setup --keystone-user keystone --keystone-group keystone
+      
+    # define own (controller host) host
+      - name: export host controller
+        command: export controller={{ internal_ip }}
+        
+    # bootstrap keystone (replace any password you like for "adminpassword" section)
+      - name: 
+        command: keystone-manage bootstrap arg1 arg2 arg3 arg4 arg5
+        args:
+          --bootstrap-password {{ admin_pass }}
+          --bootstrap-admin-url http://$controller:35357/v3/
+          --bootstrap-internal-url http://$controller:35357/v3/
+          --bootstrap-public-url http://$controller:5000/v3/
+          --bootstrap-region-id RegionOne
+  
+  # change boolean settings
+      - name: enalbe httpd boolean setting
+        seboolean:
+          name: "{{ item }}"
+          state: yes
+          persistent: yes
+        with_items:
+          - httpd_use_openstack
+          - httpd_can_network_connect
+          - httpd_can_network_connect_db
+  # Enableconfig for Keystone ans start Apache httpd
+    # create a soft link between /usr/share/keystone/wsgi-keystone.conf /etc/httpd/conf.d
+      - name: create a symlink keyston the httpd conf 
+        file:
+          src: /usr/share/keystone/wsgi-keystone.conf
+          dest: /etc/httpd/conf.d
+          state: link
+    
+    # start and enable httpd
+      - name: start and enable httpd
+        systemd:
+          name: httpd
+          enabled: yes
+          state: started
+  # Firewall allow ports 5000/tcp & 35357/tcp for public services
+      - name: add fir
+        firewalld:
+          port: "{{ item }}"
+          permanent: true
+          enable: yes
+          zone: public
+        with_items:
+          - 5000/tcp
+          - 35357/tcp
+  
+  # Firewall allow ports 5000/tcp & 35357/tcp for internal services
+
+...
