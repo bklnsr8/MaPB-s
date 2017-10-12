@@ -1,0 +1,28 @@
+---
+  - hosts: controlnode
+    remote_user: ansible
+    
+    - tasks
+# Install NTPd and Configure NTP server for time adjustment      
+      - name: install ntp
+        yum:
+          name: ntp
+          state: latest
+      
+      - name: configure ntp
+        lineinfile:
+          dest: /etc/ntp.conf
+          regex: '^#restict 192.168.1.0'
+          line: 'restrict 192.168.6.0 mask 255.255.255.0 nomodify notrap'
+      - name: Start and enable ntpd
+        systemd:
+          name: ntpd
+          enabled: yes
+          stated: started
+# Add the ntp service to the firewall rules
+      - name: allowing the ntp service through the firewall
+        firewalld:
+        service: ntp
+        permanent: true
+        state: enabled
+...
