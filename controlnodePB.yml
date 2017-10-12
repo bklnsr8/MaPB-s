@@ -1,9 +1,28 @@
 ---
   - hosts: controlnode
     remote_user: ansible
-    
+    vars:
+      internal_if: enp0s8
+      public_if: enp0s3
+      
     - tasks
-# Install NTPd and Configure NTP server for time adjustment      
+## Configure firewall
+  # ensure that the firewalld is started and enabled
+      - name: enable and start firewalld
+        systemd:
+          name: firewalld
+          enabled: yes
+          state: started
+          
+  # set internal zone interface
+      - name: set internal zone interface
+        firewalld:
+          interface: "{{ internal_if }}"
+          permanent: true
+          state: enabled
+          
+## Install NTP Server to adjust the date
+  # Install NTPd and Configure NTP server for time adjustment      
       - name: install ntp
         yum:
           name: ntp
@@ -19,10 +38,95 @@
           name: ntpd
           enabled: yes
           stated: started
-# Add the ntp service to the firewall rules
+  # Add the ntp service to the firewall rules
       - name: allowing the ntp service through the firewall
         firewalld:
-        service: ntp
-        permanent: true
-        state: enabled
-...
+          service: ntp
+          permanent: true
+          state: enabled
+## Add the repository of Openstack Ocata and Epel
+  # install the centos7 openstack ocata release
+      - name: add the openstack ocata repo
+        yum:
+          name: centos-release-openstack-ocata
+          state: present
+          
+      - name: add the epel repo
+        yum:
+          name: epel-release
+          state: present
+## Install and configure MariaDB Server
+  # install mariadb form openstack ocata
+      - name:
+        yum:
+          name: mariadb
+          enablerepo: centos-openstack-ocata
+          state: present
+  
+  # configure mariadb /etc/my.conf file
+      - name: add character-set-server
+        lineinfile:
+          dest: /etc/my.cnf
+          insertafter: '^\[mysqld\]'
+          line: character-set-server=utf8
+  
+  # start and enable mariadb
+      - name: start and enable mariadb
+        systemd:
+          name: mariadb
+          enabled: yes
+          state: started
+          
+  # initial settings for mariadb
+  
+    # set root password
+    # remove anonymous users
+    # disallow root login remotely
+    # remove test database
+    # reload privilege tables
+    # connect to MariaDB with root
+  
+  # add the mysql service to the firewall
+      - name: add the mysql service to the firewall
+        firewalld:
+          service: mysql
+          permanent: true
+          state: enabled
+          
+## install and configure rabbitmq, memcached
+  # install rabbitmq and memcached
+      - name: install rebbitmq and memcached
+        yum:
+          name: "{{ item }}"
+          enablerepo: epel
+          state: present
+        with_items:
+          - rabbitmq-server
+          - memcached
+          
+  # start and enable rabbitmq memcached
+      - name: enable rabbitmq and memcached
+        systemd:
+          name: "{{ item }}"
+          enabled: yes
+          state: started
+        with_items:
+          - rabbitmq-server
+          - memcached
+  
+  # add openstack user (set any password you like for "password"
+    # rabbitmqctl add_user openstack password
+  
+    # rabbitmqctl set_permissions openstack * * *
+    
+  # add ports 11211/tcp & 5672/tcp to firewalld
+      - name: add ports to firewall
+        firewalld:
+          port: "{{ item }}"
+          permanent: true
+          state: enabled
+        with_items:
+          - 11211/tcp
+          - 5672/tcp
+        
+... 
