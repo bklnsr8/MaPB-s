@@ -48,11 +48,11 @@
           permanent: true
           state: enabled
           zone: public
-## Add the repository of Openstack Ocata and Epel
-  # install the centos7 openstack ocata release
-      - name: add the openstack ocata repo
+## Add the repository of Openstack Pike and Epel
+  # install the centos7 openstack pike release
+      - name: add the openstack pike repo
         yum:
-          name: centos-release-openstack-ocata
+          name: centos-release-openstack-pike
           state: present
           
       - name: add the epel repo
@@ -60,11 +60,11 @@
           name: epel-release
           state: present
 ## Install and configure MariaDB Server
-  # install mariadb form openstack ocata
+  # install mariadb form openstack pike
       - name:
         yum:
           name: mariadb
-          enablerepo: centos-openstack-ocata
+          enablerepo: centos-openstack-pike
           state: present
   
   # configure mariadb /etc/my.conf file
@@ -232,7 +232,7 @@
           enabled: yes
           state: started
   # Firewall allow ports 5000/tcp & 35357/tcp for public services
-      - name: add fir
+      - name: add firewall rule
         firewalld:
           port: "{{ item }}"
           permanent: true
@@ -290,4 +290,206 @@
   # confirm settings
       - name: confirm settings
         command: openstack project list
+
+## Install and Configure OpenStack Image Service (Glance).
+  # Add users and others for Glance in Keystone
+  
+    # add glance user (set in service project)
+      - name: add glance user
+        command: openstack user create --domain default --project service --password servicepassword glance
+        
+    # add glance user in admin role
+      - name: add glance user in admin role
+        command: openstack role add --project service --user glance admin
+        
+    # add service entry for glance
+      - name: add service entry for glance
+        command: openstack service create --name glance --description "OpenStack Image service" image
+    
+    # define keystone host
+      - name: define keystone host
+        command: export controller={{ internal_ip }}
+        
+    # add endpoint for glance (public)
+      - name: add endpoint for glance (public)
+        command: openstack endpoint create --region RegionOne image public http://{{ public_ip }}:9292
+        
+    # add endpoint for glance (internal)
+      - name: add endpoint for glance (internal)
+        command: openstack endpoint create --region RegionOne image internal http://{{ internal_ip }}:9292
+        
+    # add endpoint for glance (admin)
+      - name: add endpoint for glance
+        command: openstack endpoint create --region RegionOne image admin http://{{ internal_ip }}:9292
+        
+  # Add a User and Database on MariaDB for Glance
+    # create database glance
+      - name: create database glance
+        mysql_db:
+          name: glance
+          login_user: root
+          login_password: {{ admin_pass }}
+          state: present
+          
+    # grant all privileges on glance
+      - name: grant all privileges on glance
+        mysql_db:
+          name: glance
+          login_user: root
+          login_password: {{ admin_pass }}
+          priv: 'glance.*:ALL'
+          state: present
+          
+    # grant all privileges on glance
+    # flush privileges
+    
+  # Install Glance
+    - name: install glance
+      yum:
+        name: openstack-glance
+        enablerepo: centos-openstack-pike,epel
+        state: present
+  
+  # Configure Glance
+    # backup and configure the glance-api.conf
+    - name: create and configure the glance-api.conf
+      blockinfile:
+        path: /etc/glance/glance-api.conf
+        backup: yes
+        block: |
+          [DEFAULT]
+          bind_host = 0.0.0.0
+          
+          [glance_store]
+          store = file,http
+          default_store = file
+          filesystem_store_datadir = /var/lib/glance/images
+          
+          [database]
+          connection = mysql+pymysql://glance:{{ admin_pass }}@{{ internal_ip }}/glance
+          
+          [keystone_authtoken]
+          auth_url = http://{{ internal_ip }}:5000
+          auth_url = http://{{ internal_ip }}:35357
+          memcached_servers = {{ internal_ip }}:11211
+          auth_type = password
+          project_domain_name = default
+          user_domain_name = default
+          project_name = service
+          username = glance
+          password = servicepassword
+          
+          [paste_deploy]
+          flavor = keystone
+      
+    # backup and configure the glance-registry.conf
+      - name: backup and configure the glance-registry.conf
+        blockinfile:
+          path: /etc/glance/glance-registry.conf
+          backup: yes
+          block: |
+            [DEFAULT]
+            bind_host = 0.0.0.0
+            
+            [database]
+            connection = mysql+pymysql://glance:{{ admin_pass }}@192.168.6.5/glance
+            
+            [keystone_authtoken]
+            auth_url = http://{{ internal_ip }}:5000
+            auth_url = http://{{ internal_ip }}:35357
+            memcached_servers = {{ internal_ip }}:11211
+            auth_type = password
+            project_domain_name = default
+            user_domain_name = default
+            project_name = service
+            username = glance
+            password = servicepassword
+            
+            [paste_deploy]
+            flavor = keystone
+            
+   # change glance boolean settings
+      - name: change glance boolean settings
+        seboolean:
+          name: glance_api_can_network
+          state: yes
+          persistant: yes
+          
+   # allow ports for glance service
+      - name: allow ports for glance service
+        firewalld:
+          zone: internal
+          port: "{{ item }}"
+          state: enabled
+          permanent: true
+        with_items:
+          - 9191/tcp
+          - 9292/tcp
+          
+## Add VM Images
+  
+  # Create Centos 7 image on Glance Host
+    # install qemu-img, virt-install
+      - name: install qemu-img virt-install
+        yum:
+          name: "{{ item }}"
+          state: latest
+        with_items:
+          - qemu-img
+          - virt-install
+          - qemu-kvm 
+   
+    # start and enable libvirtd
+      - name: start and enable libvirtd
+        systemd:
+          name: libvirtd
+          enabled: yes
+          state: started
+          
+    # create a directory for disk image
+      - name: create a directory for disk images
+        file:
+          path: /var/kvm/images
+          state: directory
+    # create a disk image
+      - name: create a disk image
+        virt:
+          name: centos7
+        
+    # install VM
+     http://mirror.cs.vt.edu/pub/CentOS/7/os/x86_64/
+     
+  # After installation, change settings in virtual machine like follows and shutdown it.
+    
+    # delete or comment out the line [HWADDR] and [UUID] in [/etc/sysconfig/network-scripts/ifcfg-eth0]
+      - name: comment out uuid and HWDDR
+        replace:
+          path: /etc/sysconfig/network-scripts/ifcfg-{{ internal_if }}
+          regex: '^UUID'
+          replace: '#UUID'
+          backup: yes
+          
+    # set [dhcp] for [BOOTPROTO] in [/etc/sysconfig/network-scripts/ifcfg-eth0]
+      - name: set BOOTPROTO as dhcp
+        replace:
+          path: /etc/sysconfig/network-scripts/ifcfg-{{ internal_if }}
+          regex: '^BOOTPROTO=none'
+          replace: 'BOOTPROTO=dhcp'
+          
+    # install [cloud-init] package and enable [cloud-init] service, and also add a user whose name is [centos]
+      - name: install cloud-init
+        yum:
+          name: cloud-init
+          state: latest
+          
+      - name: start and enable cloud-init
+        systemd:
+          name: cloud-init
+          state: started
+          enabled: yes
+  # Add the virtual image to Glance
+    
+    # openstack image create
+  
+ 
 ...
