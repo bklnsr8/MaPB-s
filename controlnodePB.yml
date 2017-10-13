@@ -48,6 +48,7 @@
           permanent: true
           state: enabled
           zone: public
+          
 ## Add the repository of Openstack Pike and Epel
   # install the centos7 openstack pike release
       - name: add the openstack pike repo
@@ -59,6 +60,7 @@
         yum:
           name: epel-release
           state: present
+          
 ## Install and configure MariaDB Server
   # install mariadb form openstack pike
       - name:
@@ -451,6 +453,7 @@
         file:
           path: /var/kvm/images
           state: directory
+          
     # create a disk image
       - name: create a disk image
         virt:
@@ -487,9 +490,69 @@
           name: cloud-init
           state: started
           enabled: yes
+          
   # Add the virtual image to Glance
-    
     # openstack image create
-  
- 
+      - name: openstack image create
+        command: openstack image create "CentOS7" --file /var/kvm/images/centos7.img --disk-format qcow2 --container-format bare --public 
+## Configure Nova 
+  # Add users and others for Nova in keystone
+    # add nova user (set in service project)
+      - name: add nova user
+        command: openstack user create --domain default --project service --password servicepassword nova 
+        
+    # add nova user in admin role
+      - name: add nova user in admin role
+        command: openstack role add --project service --user nova admin
+        
+    # add placement user (set in service project)
+      - name: add placement user
+        command: openstack user create --domain default --project service --password servicepassword placement
+        
+    # add service entry for nova
+      - name: add service entry for nova
+        command: openstack service create --name nova --description "OpenStack Compute service" compute
+        
+    # add service entry for placement
+      - name: add service entry for placement
+        command: openstack service create --name placement --description "OpenStack Compute Placement service" placement
+        
+    # add endpoint for nova (public)
+      - name: add endpoint for nova public
+        command: openstack endpoint create --region RegionOne compute public http://{{ public_ip }}:8774/v2.1/%\(tenant_id\)s
+        
+    # add endpoint for nova (internal)
+      - name: add endpoint for nova internal
+        command: openstack endpoint create --region RegionOne compute internal http://{{ internal_ip }}:8774/v2.1/%\(tenant_id\)s
+        
+    # add endpoint for nova (admin)
+      - name: add endpoint for nova admin
+        command: openstack endpoint create --region RegionOne compute admin http://{{ internal_ip }}:8774/v2.1/%\(tenant_id\)s
+        
+    # add endpoint for placement (public)
+      - name: add endpoint got placement public
+        command: openstack endpoint create --region RegionOne placement public http://{{ public_ip }}:8778 
+        
+    # add endpoint for placement (internal)
+      - name: add endpoint for placement internal
+        command: openstack endpoint create --region RegionOne placement internal http://{{ internal_ip }}:8778
+        
+    # add endpoint for placement (admin)
+      - name: add endpoint for placement admin
+        command: openstack endpoint create --region RegionOne placement admin http://{{ internal_ip }}:8778
+        
+  # Add a user and database on MariaDB for Nova
+    # create database nova
+    # grant all privileges on nova.* to nova@'localhost' identified by 'password'; 
+    # grant all privileges on nova.* to nova@'%' identified by 'password';
+    # create database nova_api;
+    # grant all privileges on nova_api.* to nova@'localhost' identified by 'password'; 
+    # grant all privileges on nova_api.* to nova@'%' identified by 'password';
+    # create database nova_placement; 
+    # grant all privileges on nova_placement.* to nova@'localhost' identified by 'password';
+    # grant all privileges on nova_placement.* to nova@'%' identified by 'password';
+    # create database nova_cell0;
+    # grant all privileges on nova_cell0.* to nova@'localhost' identified by 'password';
+    # grant all privileges on nova_cell0.* to nova@'%' identified by 'password';
+    
 ...
