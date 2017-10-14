@@ -219,6 +219,7 @@
           - httpd_use_openstack
           - httpd_can_network_connect
           - httpd_can_network_connect_db
+          
   # Enableconfig for Keystone ans start Apache httpd
     # create a soft link between /usr/share/keystone/wsgi-keystone.conf /etc/httpd/conf.d
       - name: create a symlink keyston the httpd conf 
@@ -233,6 +234,7 @@
           name: httpd
           enabled: yes
           state: started
+          
   # Firewall allow ports 5000/tcp & 35357/tcp for public services
       - name: add firewall rule
         firewalld:
@@ -554,5 +556,179 @@
     # create database nova_cell0;
     # grant all privileges on nova_cell0.* to nova@'localhost' identified by 'password';
     # grant all privileges on nova_cell0.* to nova@'%' identified by 'password';
+  
+  # Install Nova services
+      - name: install from pike & epel
+        yum:
+          name: openstack-nova
+          enalberepo: centos-openstack-pike,epel
+          state: present
+  
+  # backup and Configure Nova
+      - name: backup and configure nova
+        blockinfile:
+          path: /etc/nova/nova.conf
+          backup: yes
+          block: |
+            [DEFAULT]
+            # define own IP
+            my_ip = 192.168.6.5
+            state_path = /var/lib/nova
+            enable_apis = osapi_compute,metadata
+            log_dir = /var/log/nova
+            # RabbitMQ connection info
+            transport_url = rabbit://openstack:password@192.168.6.5
+            
+            [api]
+            auth_strategy = keystone
+            
+            # Glance connection info
+            [glance]
+            api_servers = http://192.168.6.5:9292
+            
+            [oslo_concurrency]
+            lock_path = $state_path/tmp
+            
+            # MariaDB connection info
+            [api_database]
+            connection = mysql+pymysql://nova:password@192.168.6.5/nova_api
+            
+            [database]
+            connection = mysql+pymysql://nova:password@192.168.6.5/nova
+            
+            # Keystone auth info
+            [keystone_authtoken]
+            auth_url = http://192.168.6.5:5000
+            auth_url = http://192.168.6.5:35357
+            memcached_servers = 192.168.6.5:11211
+            auth_type = password
+            project_domain_name = default
+            user_domain_name = default
+            project_name = service
+            username = nova
+            password = servicepassword
+            
+            [placement]
+            auth_url = http://192.168.6.5:35357
+            os_region_name = RegionOne
+            auth_type = password
+            project_domain_name = default
+            user_domain_name = default
+            project_name = service
+            username = placement
+            password = servicepassword
+            
+            [placement_database]
+            connection = mysql+pymysql://nova:password@192.168.6.5/nova_placement
+            
+            [wsgi]
+            api_paste_config = /etc/nova/api-paste.ini
+            
+  # change the permission of nova.conf
+      - name: change the permission of nova.conf
+        file:
+          path: /etc/nova/nova.conf
+          mode: 0640
+          group: nova
+          
+ # Add directory to 00-nova-placement-api.conf
+      - name: Add directory to 00-nova-placement-api.conf
+        blockinfile:
+          path: /etc/httpd/conf.d/00-nova-placement-api.conf
+          backup: yes
+          insertafter: '^#SSLCertificateKeyFile ...'
+          insertbefore: '^</VirtualHost>'
+          block: |
+            <Directory /usr/bin>
+             Require all granted 
+            </Directory>
+            
+ # Add SELinux port policy
+    - name:
     
+ # create the nova-api_pol.te
+    - name: create the nova-api_pol.te
+      blockinfile:
+      create: yes
+      block: |
+        module nova-api_pol 1.0;
+        
+        require {
+             type nova_t;
+             type httpd_config_t;
+             type httpd_t;
+             type nova_log_t;
+             type sysctl_net_t;
+             type netutils_exec_t;
+             class file { read getattr create open execute };
+             class dir { write search add_name };
+             class capability { kill sys_ptrace };
+             class capability2 block_suspend;
+        }
+        
+        #============= httpd_t ==================
+        allow httpd_t nova_log_t:dir { write add_name };
+        allow httpd_t nova_log_t:file { create open };
+        
+        #============= nova_t ===================
+        allow nova_t httpd_config_t:dir search;
+        allow nova_t netutils_exec_t:file execute;
+        allow nove_t self:capability kill;
+        allow nova_t sysctl_net_t:dir search;
+        allow nova_t sysctl_net_t:file { read getattr open };
+        allow nova_t self:capability sys_ptrace;
+        allow nova_t self:capability2 block_suspend;
+        
+ # check the syntax on the nova-api_pol.te
+    - name: 
+      command: checkmodule -m -M -o nova-api_pol.mod nova-api_pol.te
+      
+ # Semodule 
+    - name:
+      command: semodule_package --outfile nova-api_pol.pp --module nova-api_pol.mod
+      
+ # Semodule
+    - name:
+      command: semodule -i nova-api_pol.pp
+ 
+# Add firewall ports for nova
+    - name:
+      firewalld:
+        port: "{{ item }}"
+        permanent: true
+      with_items:
+        - 6080/tcp
+        - 6081/tcp
+        - 6082/tcp
+        - 8774/tcp
+        - 8775/tcp
+        - 8778/tcp
+ 
+# Add Data into Database and start Nova services
+    - name: 
+      command: su -s /bin/bash nova -c "nova-manage api_db sync"
+      
+    - name:
+      command: su -s /bin/bash nova -c "nova-manage cell_v2 map_cell0 arg1
+      args:
+        - --datavase_connection mysql+pymysql://nova:password@192.168.6.5/nova_cell0"
+    
+    - name:
+      command: su -s /bin/bash nova -c "nova-manage cell_v2 create_cell arg1 arg2 agr3
+      args:
+        - --name cell1
+        - --database_connection mysql+pymysql://nova:password@192.168.6.5/nova
+        - --transport-url rabbit://openstack:password@192.168.6.5:5672"
+        
+  # restart httpd
+    - name: restart httpd
+      systemd:
+        name: httpd
+        state: restarted
+        
+  # change the owner of the nova-placement-api.log
+    - name: change the owner of the nova-placement-api.log
+      file:
+        path: /var/log/nova/nova-placement-api.log
+        owner: nova
 ...
