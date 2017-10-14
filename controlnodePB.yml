@@ -731,4 +731,13 @@
       file:
         path: /var/log/nova/nova-placement-api.log
         owner: nova
+        
+  # Run  script
+    - name:
+      command: for service in api consoleauth conductor scheduler novncproxy; do arg1 arg2 done 
+      args:
+        - systemctl start openstack-nova-$service
+        - systemctl enable openstack-nova-$service
+        
+  
 ...
