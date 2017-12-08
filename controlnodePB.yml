@@ -63,7 +63,7 @@
           
 ## Install and configure MariaDB Server
   # install mariadb form openstack pike
-      - name:
+      - name: install mariadb form openstack pike
         yum:
           name: mariadb
           enablerepo: centos-openstack-pike
