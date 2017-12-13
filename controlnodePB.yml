@@ -86,12 +86,40 @@
   # initial settings for mariadb
   
     # set root password
+    - name: set root password
+      mysql_user:
+        name: root
+        check_implicit_admin: yes
+        login_user: root
+        login_password:
+        state: present
+        
     # remove anonymous users
+    - name:remove anonymous users
+      mysql_user:
+        name: ''
+        host: localhost
+        state: absent
+        
     # disallow root login remotely
+    
     # remove test database
     # reload privilege tables
     # connect to MariaDB with root
-  
+    - name: mysql_secure_installation Command Test
+      expect:
+        command: mysql_secure_installation
+        responses:
+          'Enter current password for root \(enter for none\):': "\n"
+          'Set root password? [Y/n]:': 'y'
+          'New password:': '123456'
+          'Re-enter new password:': '123456'
+          'Remove anonymous users? [Y/n]:': 'y'
+          'Disallow root login remotely? [Y/n]:': 'y'
+          'Remove test database and access to it? [Y/n]:': 'y'
+          'Reload privilege tables now? [Y/n]:': 'y'
+          
+        echo: yes
   # add the mysql service to the firewall
       - name: add the mysql service to the firewall
         firewalld:
